@@ -5,14 +5,14 @@ import org.example.server.web.interfaces.TokenAccessHandler;
 import org.example.server.web.service.LoginService;
 import org.example.server.web.service.PermissionService;
 import lombok.Getter;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Configuration;
-import jakarta.annotation.PostConstruct;
 
 @Configuration
-public class LoginModuleContext implements ApplicationContextAware {
+public class LoginModuleContext implements ApplicationContextAware, SmartInitializingSingleton {
 
     private ApplicationContext applicationContext;
     @Getter
@@ -29,22 +29,12 @@ public class LoginModuleContext implements ApplicationContextAware {
     private boolean needAnnotation;
 
     @Getter
-    private TokenAccessHandler tokenAccessHandler;
+    private TokenAccessHandler<?> tokenAccessHandler;
 
     // 设置 ApplicationContext
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
-    }
-
-    @PostConstruct
-    public void checkLoginService() {
-        // 获取 LoginService 的实现
-        permissionService = getService(PermissionService.class);
-        loginService = getService(LoginService.class);
-        if(tokenAccessEnable) {
-            tokenAccessHandler = getService(TokenAccessHandler.class);
-        }
     }
 
     public <T> T getService(Class<T> tClass) {
@@ -53,6 +43,16 @@ public class LoginModuleContext implements ApplicationContextAware {
         } catch (Exception e) {
             // 如果没有找到 LoginService 的实现，抛出异常并提示用户
             throw new IllegalStateException("请实现 "+tClass.getName()+" 接口注册到spring中");
+        }
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        // 获取 LoginService 的实现
+        permissionService = getService(PermissionService.class);
+        loginService = getService(LoginService.class);
+        if(tokenAccessEnable) {
+            tokenAccessHandler = getService(TokenAccessHandler.class);
         }
     }
 }
