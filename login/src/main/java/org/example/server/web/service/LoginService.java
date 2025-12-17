@@ -1,15 +1,19 @@
 package org.example.server.web.service;
 
 import org.example.server.web.domain.BaseLoginUser;
+import org.example.server.web.domain.LoginRequest;
 
 public interface LoginService<T extends BaseLoginUser> {
+
+
+    void sendCode(LoginRequest loginRequest);
+
     /**
      * 登录检查
-     * @param username 用户名
-     * @param password 密码
+     * @param request 登录请求对象
      * @return 用户对象
      */
-    T loginCheck(String username, String password);
+    T loginCheck(LoginRequest request);
 
     /**
      * 获取登录用户

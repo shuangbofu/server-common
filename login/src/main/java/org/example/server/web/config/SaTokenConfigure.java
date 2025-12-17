@@ -120,7 +120,8 @@ public class SaTokenConfigure implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 注册 Sa-Token 拦截器
         registry.addInterceptor(new SaInterceptor(this::checkLogin))
-        .addPathPatterns("/**").excludePathPatterns("/api/user/doLogin","/api/user/doLogout")
+        .addPathPatterns("/**")
+                .excludePathPatterns("/api/user/doLogin","/api/user/doLogout","/api/user/sendLoginCode")
                 .excludePathPatterns("/", "/index", "/**.js", "/**.css", "/**.html",
                         "/static/**","/public/**","/assets/**", "/favicon.ico");
     }

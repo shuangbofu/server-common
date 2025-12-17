@@ -2,6 +2,7 @@ package org.example.server.web.config;
 
 import org.example.server.web.domain.BaseLoginUser;
 import org.example.server.web.interfaces.TokenAccessHandler;
+import org.example.server.web.service.CodeVerifyService;
 import org.example.server.web.service.LoginService;
 import org.example.server.web.service.PermissionService;
 import lombok.Getter;
@@ -28,6 +29,10 @@ public class LoginModuleContext implements ApplicationContextAware, SmartInitial
     @Getter
     private boolean needAnnotation;
 
+    @Value("${login.mobile-login:false }")
+    @Getter
+    private boolean mobileLogin;
+
     @Getter
     private TokenAccessHandler<?> tokenAccessHandler;
 
@@ -53,6 +58,9 @@ public class LoginModuleContext implements ApplicationContextAware, SmartInitial
         loginService = getService(LoginService.class);
         if(tokenAccessEnable) {
             tokenAccessHandler = getService(TokenAccessHandler.class);
+        }
+        if(mobileLogin) {
+            getService(CodeVerifyService.class);
         }
     }
 }

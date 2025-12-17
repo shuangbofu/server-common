@@ -5,10 +5,10 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import org.example.server.log.annotation.OperationLog;
 import org.example.server.mybatis.IdEntity;
 import org.example.server.user.config.GlobalConfig;
-import org.example.server.user.constant.ErrorCodes;
 import org.example.server.user.domain.LoginUser;
 import org.example.server.user.domain.param.SelfUserForm;
 import org.example.server.user.domain.param.UserForm;
@@ -22,16 +22,18 @@ import org.example.server.user.persistence.entity.UserRole;
 import org.example.server.user.persistence.mapper.RoleMapper;
 import org.example.server.user.persistence.mapper.UserMapper;
 import org.example.server.user.persistence.mapper.UserRoleMapper;
-import org.example.server.web.ErrorCode;
+import org.example.server.web.domain.LoginRequest;
 import org.example.server.web.domain.RouterPermission;
 import org.example.server.web.domain.request.PageRequest;
 import org.example.server.web.domain.request.PageVO;
 import org.example.server.web.exception.BizException;
+import org.example.server.web.service.CodeVerifyService;
 import org.example.server.web.service.LoginService;
 import org.example.server.web.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import org.example.server.web.utils.LoginUtils;
 import org.example.server.user.utils.UserUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +54,11 @@ public class UserServiceImpl implements LoginService<LoginUser>, PermissionServi
     private final GlobalConfig globalConfig;
     private final RoleService roleService;
     private final RoleMapper roleMapper;
+    private final CodeVerifyService codeVerifyService;
+
+    @Value("${login.mobile-login:false }")
+    @Getter
+    private boolean mobileLogin;
 
     @PostConstruct
     public void updateUserNicknameCache() {
@@ -60,20 +67,38 @@ public class UserServiceImpl implements LoginService<LoginUser>, PermissionServi
     }
 
     @Override
-    public LoginUser loginCheck(String username, String password) {
-        User user = userMapper.selectOne(i-> i
-                        .eq(User::getUsername, username).or()
-                        .eq(User::getMobile, username),
-                () -> new BizException(USER_NOT_FOUND));
+    public void sendCode(LoginRequest request) {
+        User user = userMapper.getUserByMobile(request.getMobile());
         if(user == null) {
             throw new BizException(USER_NOT_FOUND);
         }
-        if(user.getState() == 0) {
-            throw new BizException(USER_INVALID);
+        codeVerifyService.sendCode(request.getMobile(),"LOGIN");
+    }
+
+    @Override
+    public LoginUser loginCheck(LoginRequest request) {
+        User user;
+        if(!mobileLogin) {
+            String username = request.getUsername();
+            String password = request.getPassword();
+            user = userMapper.selectOne(i -> i
+                            .eq(User::getUsername, username).or()
+                            .eq(User::getMobile, username),
+                    () -> new BizException(USER_NOT_FOUND));
+            boolean equals = SaSecureUtil.sha256(password).equals(user.getPassword());
+            if (!equals) {
+                throw new BizException(PASSWORD_WRONG, username);
+            }
+        } else {
+            String mobile = request.getMobile();
+            codeVerifyService.verifyCode("LOGIN", mobile, request.getCode());
+            user = userMapper.getUserByMobile(request.getMobile());
         }
-        boolean equals = SaSecureUtil.sha256(password).equals(user.getPassword());
-        if(!equals) {
-            throw new BizException(PASSWORD_WRONG, username);
+        if (user == null) {
+            throw new BizException(USER_NOT_FOUND);
+        }
+        if (user.getState() == 0) {
+            throw new BizException(USER_INVALID);
         }
         Long id = user.getId();
         return getLoginUser(id.toString());
